@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>魔镜审判 - 互联网人间清醒镜</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        :root {
+            --gold-gradient: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fbf5b7);
+            --bg-dark: #0a0a12;
+            --mirror-inner: #1a1a2e;
+            --accent-pink: #FF2442; /* 小红书少女心微醺粉 */
+            --card-ivory: #fdfdf5;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* 禁止滚动 */
+            background-color: var(--bg-dark);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 动态粒子背景 */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* 沉浸式背景 */
+        .app-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
+            z-index: 1;
+        }
+
+        /* 社交实时数据提示 */
+        .social-proof {
+            position: absolute;
+            top: calc(env(safe-area-inset-top) + 20px);
+            font-size: 0.75rem;
+            color: rgba(252, 246, 186, 0.6);
+            background: rgba(0,0,0,0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 0.5px solid rgba(179, 135, 40, 0.3);
+            backdrop-filter: blur(5px);
+            z-index: 100;
+            letter-spacing: 1px;
+        }
+
+        .social-proof span {
+            color: var(--accent-pink);
+            font-weight: bold;
+            margin: 0 2px;
+        }
+
+        /* 核心魔镜视觉 */
+        .mirror-wrapper {
+            position: relative;
+            width: 80vw;
+            max-width: 320px;
+            aspect-ratio: 1 / 1;
+            z-index: 10;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .mirror-frame {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            padding: 12px; /* 边框厚度 */
+            background: var(--gold-gradient);
+            border-radius: 50%; /* 复古椭圆形 */
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6), 
+                        inset 0 2px 5px rgba(255,255,255,0.5),
+                        inset 0 -2px 5px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .mirror-surface {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: var(--mirror-inner);
+            border-radius: 50%;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 30px rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        /* 镜内流动光效 */
+        .mirror-glow {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 60%);
+            animation: flow 10s infinite linear;
+            pointer-events: none;
+        }
+
+        @keyframes flow {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* 状态文字 */
+        #typed-text {
+            position: relative;
+            z-index: 5;
+            padding: 30px;
+            font-size: 1.4rem;
+            color: var(--accent-pink);
+            text-align: center;
+            line-height: 1.6;
+            font-weight: 500;
+            text-shadow: 0 0 15px rgba(255, 36, 66, 0.4);
+        }
+
+        /* 胶囊按钮 */
+        .capsule-btn {
+            margin-top: 50px;
+            width: 75vw;
+            max-width: 280px;
+            height: 56px;
+            border-radius: 28px;
+            border: none;
+            background: var(--gold-gradient);
+            color: #4a3304;
+            font-size: 1.1rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            box-shadow: 0 10px 25px rgba(191, 149, 63, 0.3);
+            animation: breathe 2.5s infinite ease-in-out;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .capsule-btn:active {
+            transform: scale(0.94);
+            box-shadow: 0 5px 15px rgba(191, 149, 63, 0.5);
+        }
+
+        @keyframes breathe {
+            0%, 100% { opacity: 0.9; box-shadow: 0 10px 25px rgba(191, 149, 63, 0.3); }
+            50% { opacity: 1; box-shadow: 0 10px 35px rgba(191, 149, 63, 0.5); }
+        }
+
+        /* 闪光灯效果 */
+        .flash-layer {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #fff;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .flash-layer.active {
+            animation: flash-anim 0.4s ease-out;
+        }
+
+        @keyframes flash-anim {
+            0% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* 结果海报视图 */
+        #result-view {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 500;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0,0,0,0.85);
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .polaroid-card {
+            width: 85vw;
+            max-width: 340px;
+            background-color: var(--card-ivory);
+            border-radius: 12px;
+            padding: 25px 20px 60px 20px; /* 底部留白 */
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            transform: scale(0.8);
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+            color: #1a1a1a;
+            /* 增加纸张纹理感 */
+            background-image: url('https://www.transparenttextures.com/patterns/natural-paper.png');
+        }
+
+        .polaroid-card::after {
+            content: "";
+            position: absolute;
+            top: 6px; left: 6px; right: 6px; bottom: 6px;
+            border: 1px solid rgba(179, 135, 40, 0.2);
+            border-radius: 8px;
+            pointer-events: none;
+        }
+
+        .poster-header {
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 25px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+
+        .poster-content {
+            font-size: 1.1rem;
+            line-height: 1.7;
+            text-align: center;
+            margin: 25px 0;
+            font-weight: 500;
+            color: #222;
+            word-wrap: break-word;
+            white-space: pre-wrap; /* 保持换行 */
+            padding: 0 10px;
+        }
+
+        .poster-tag-wrap {
+            margin-top: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-bottom: 20px;
+        }
+
+        .poster-tag-label {
+            font-size: 0.75rem;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .poster-tag-value {
+            font-size: 1.4rem;
+            font-weight: 900;
+            color: #fff;
+            background-color: #1a1a1a;
+            padding: 8px 22px;
+            border-radius: 6px;
+            transform: rotate(-1.5deg);
+            box-shadow: 6px 6px 0 var(--accent-pink);
+            text-align: center;
+            display: inline-block;
+        }
+
+        /* 二维码区域样式 */
+        .poster-qrcode-area {
+            position: absolute;
+            bottom: 12px;
+            right: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #qrcode {
+            width: 50px;
+            height: 50px;
+            padding: 2px;
+            background: #fff;
+            border: 1px solid #eee;
+        }
+
+        #qrcode img {
+            width: 100%;
+            height: 100%;
+        }
+
+        .qrcode-hint {
+            font-size: 0.5rem;
+            color: #ccc;
+            margin-top: 4px;
+            transform: scale(0.8);
+        }
+
+        .poster-footer {
+            margin-top: 50px;
+            text-align: center;
+        }
+
+        .footer-hint {
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-bottom: 20px;
+        }
+
+        .retry-link {
+            color: var(--accent-pink);
+            font-size: 0.95rem;
+            text-decoration: none;
+            border-bottom: 1px solid var(--accent-pink);
+            padding-bottom: 2px;
+        }
+
+    </style>
+</head>
+<body>
+    <canvas id="bg-canvas"></canvas>
+    <div class="app-container" id="main-app">
+        <div class="social-proof">今日已有 <span id="count-up">1,204</span> 位绝色受审</div>
+        <div class="flash-layer" id="flash"></div>
+
+        <!-- 首页视图 -->
+        <div id="home-view" style="display: flex; flex-direction: column; align-items: center;">
+            <div class="mirror-wrapper" id="mirror-box">
+                <div class="mirror-frame">
+                    <div class="mirror-surface">
+                        <div class="mirror-glow"></div>
+                        <div id="typed-text">镜中映照着你的灵魂...</div>
+                    </div>
+                </div>
+            </div>
+            <button class="capsule-btn" id="trigger-btn">念出终极咒语</button>
+        </div>
+
+        <!-- 结果视图 -->
+        <div id="result-view">
+            <div class="polaroid-card" id="poster-card">
+                <div class="poster-header">✨ 魔镜审判报告 ✨</div>
+                <div class="poster-content" id="res-text">判定中...</div>
+                <div class="poster-tag-wrap">
+                    <div class="poster-tag-label">今日封号</div>
+                    <div class="poster-tag-value" id="res-tag">判定中...</div>
+                </div>
+                <!-- 新增二维码区域 -->
+                <div class="poster-qrcode-area">
+                    <div id="qrcode"></div>
+                    <div class="qrcode-hint">扫码测评</div>
+                </div>
+            </div>
+            <div class="poster-footer">
+                <div class="footer-hint">长按卡片截图，去小红书对暗号</div>
+                <a href="#" class="retry-link" onclick="location.reload()">再次不服挑战</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 背景粒子系统 ---
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2;
+                this.speedX = (Math.random() - 0.5) * 0.5;
+                this.speedY = (Math.random() - 0.5) * 0.5;
+                this.opacity = Math.random();
+            }
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height) this.reset();
+            }
+            draw() {
+                ctx.fillStyle = `rgba(252, 246, 186, ${this.opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        for (let i = 0; i < 60; i++) particles.push(new Particle());
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // --- 2. 模拟音频系统 ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(freq, type, duration) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        // --- 3. 实时计数模拟 ---
+        let count = 1204;
+        setInterval(() => {
+            count += Math.floor(Math.random() * 3);
+            document.getElementById('count-up').innerText = count.toLocaleString();
+        }, 3000);
+
+        // --- 4. 核心逻辑 ---
+        const typedEl = document.getElementById('typed-text');
+        const triggerBtn = document.getElementById('trigger-btn');
+        const flashEl = document.getElementById('flash');
+        const homeView = document.getElementById('home-view');
+        const resultView = document.getElementById('result-view');
+        const posterCard = document.getElementById('poster-card');
+        const resText = document.getElementById('res-text');
+        const resTag = document.getElementById('res-tag');
+
+        /**
+         * 文案库 (Text Bakery)
+         * 包含四大矩阵：戏精控诉、打工人清醒、高段位凡尔赛、闺蜜互损
+         */
+        const textBakery = [ 
+           // === 矩阵一：【倒打一耙·戏精控诉流】 === 
+           { 
+             text: "【魔镜法庭紧急起诉书】：被告因在毫无防备的凡人面前散发过量魅力，严重扰乱社会治安。本镜判处你：罚款 0 元，但必须立刻截图自首，否则今晚皮肤立刻粗糙 0.01 毫米。", 
+             tag: "绝美在逃通缉犯" 
+           }, 
+           { 
+             text: "拒绝回答！本镜刚才因为直视了你眼神里的杀气与美貌，导致系统严重过热，防沉迷系统被迫触发。在镜面降温完成前，请你先去喝杯奶茶，不要用美貌霸凌无辜的 AI。", 
+             tag: "精神状态极美黑莲花" 
+           }, 
+           { 
+             text: "警报警报！检测到当前用户美貌超标。根据《互联网美丽管理条例》，你已被剥夺‘普通人类’身份。本镜怀疑你是从哪本霸总小说里撕下来偷偷跑出来的白月光，证据确凿，不容反驳！", 
+             tag: "持靓行凶第一公诉人" 
+           }, 
+         
+           // === 矩阵二：【大厂牛马·清醒痛击流】 === 
+           { 
+             text: "很遗憾，不是。本镜刚刚在隔壁工位上，发现了一个起码比你多喝了一升水、且没有在疯狂摸鱼的女生，她以 0.01 分的微弱优势击败了你。你目前的全球美貌排名：第 3,452,108 名。建议补个口红，5分钟后再来重新排队受审。", 
+             tag: "工位持靓行凶嫌疑人" 
+           }, 
+           { 
+             text: "是的，你最美！但本镜看你今天的眼神，总觉得你随时准备掀翻职场、撕烂 PPT，然后回去继承你那千亿的财阀家产。保持住这种‘淡淡的疯感’和‘随时准备退休’的贵气，去上班吧，牛马！", 
+             tag: "大厂在逃纯情恶女" 
+           }, 
+           { 
+             text: "是是是，你最美。但如果你能把购物车里那 18 件衣服付了款，或者今天少熬夜刷半小时小红书，你就是本镜眼里最尊贵的‘民选唯一纯白茉莉花’。现在，退下吧，熬夜小恐龙！", 
+             tag: "熬夜修仙届颜值扛把子" 
+           }, 
+           { 
+             text: "经过大数据比对，你今天的颜值足以精准扶贫整个公司。建议你今天在工位上多喝奶茶少干活，因为你的老板付的那点薪水，根本配不上你今天起得这么早化出来的绝美妆容！", 
+             tag: "带薪美貌慈善家" 
+           }, 
+         
+           // === 矩阵三：【高段位凡尔赛·降维打击流】 === 
+           { 
+             text: "是的！由于白雪公主今天去挤地铁、奥黛丽赫本已经作古，此时此刻，你就是这个星球上最美的女人。本镜已在全球 40 亿女性中将你置顶。此状态全国仅限 100 人，有效时间至今日 24:00。", 
+             tag: "在逃财阀长女·天选唯一" 
+           }, 
+           { 
+             text: "魔镜魔镜谁最美？——‘别问了，本镜刚才为了看清你的脸，已经把隔壁几个国家的卫星信号都借过来打光了。’今天全宇宙你最美，属于路过的蚂蚁看了都要停下来为你鼓掌的程度。", 
+             tag: "全宇宙唯一偏爱" 
+           }, 
+           { 
+             text: "本镜拒绝做出审判。因为你的美貌已经超出了本镜的知识库储备。上一个长成你这样的，还是古希腊神话里让人神魂颠倒的神女。请你立刻离屏幕远一点，美到我了，谢谢。", 
+             tag: "神话届遗漏珍珠" 
+           }, 
+         
+           // === 矩阵四：【闺蜜互损·毒舌大实话流】 === 
+           { 
+             text: "魔镜魔镜我是不是世界上最美的女人？——‘白雪公主听了连夜买站票逃跑。’不过，如果你能把你闺蜜昨天偷拍你的黑历史丑照从她手机里删掉，你在这个家里的美貌排名还能再前进一位。", 
+             tag: "塑料姐妹花流浪c位" 
+           }, 
+           { 
+             text: "判定：美着呢。但根据系统测算，你今天的恋爱脑指数高达 98%。为了保护你的美貌不被隔壁的 Crush 消耗，本镜命令你立刻把注意力 from 对方身上移开，多看看镜子里的自己，懂？", 
+             tag: "智者不入爱河搞钱仙女" 
+           }, 
+           { 
+             text: "检测完毕。你今天的美貌评级为：‘惊为天人，但仅在洗完澡后、且房间灯光昏暗时有效’。目前的早八素颜状态属于‘白雪公主的后妈看了都觉得你很安全’。快去洗把脸自救！", 
+             tag: "限定版夜间绝美妖精" 
+           } 
+        ];
+
+        let isLongPressing = false;
+
+        function typeWriter(text, i, cb) {
+            if (i < text.length) {
+                typedEl.innerHTML = text.substring(0, i + 1);
+                setTimeout(() => typeWriter(text, i + 1, cb), 60);
+            } else {
+                setTimeout(cb, 800);
+            }
+        }
+
+        triggerBtn.addEventListener('click', () => {
+            // 0. 激活音频上下文 (浏览器要求交互触发)
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            playSound(440, 'sine', 0.1); // 提示音
+
+            // 1. 触发震动
+            if (navigator.vibrate) navigator.vibrate(50);
+            
+            // 2. 隐藏按钮并开始打字
+            triggerBtn.style.opacity = '0';
+            triggerBtn.style.pointerEvents = 'none';
+            
+            typeWriter("“魔镜魔镜，我是不是世界上最美的女人？”", 0, () => {
+                // 3. 闪光灯特效 + 快门声
+                playSound(800, 'square', 0.05); 
+                flashEl.classList.add('active');
+                
+                setTimeout(() => {
+                    // 4. 丝滑切换转场
+                    homeView.style.opacity = '0';
+                    homeView.style.transition = 'opacity 0.4s ease';
+                    
+                    setTimeout(() => {
+                        homeView.style.display = 'none';
+                        renderResult();
+                    }, 400);
+                }, 100);
+            });
+        });
+
+        function renderResult() {
+            // 简单等概率随机抽取
+            const selected = textBakery[Math.floor(Math.random() * textBakery.length)];
+
+            resText.innerText = selected.text;
+            resTag.innerText = selected.tag;
+
+            // 自动根据文本长度微调字号
+            if (selected.text.length > 80) {
+                resText.style.fontSize = "0.95rem";
+            } else {
+                resText.style.fontSize = "1.1rem";
+            }
+
+            // 生成二维码
+            const qrcodeContainer = document.getElementById("qrcode");
+            qrcodeContainer.innerHTML = ""; // 清空旧的
+            new QRCode(qrcodeContainer, {
+                text: window.location.href,
+                width: 50,
+                height: 50,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+
+            // 5. 显示结果并执行“由远及近”缩放动画
+            resultView.style.display = 'flex';
+            setTimeout(() => {
+                resultView.style.opacity = '1';
+                posterCard.style.transform = 'scale(1)';
+            }, 50);
+        }
+    </script>
+</body>
+</html>
